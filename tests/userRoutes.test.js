@@ -1,12 +1,25 @@
 const prisma = require("../prismaClient.js");
 const request = require("supertest");
+const bcrypt = require("bcryptjs");
 const userRouter = require("../routes/userRoutes.js");
 const friendRouter = require("../routes/friendRoutes.js");
 
+const session = require("express-session");
 const express = require("express");
 const app = express();
 
 app.use(express.json());
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 },
+    name: "fernandoalonso",
+  })
+);
+
 app.use("/users", userRouter);
 app.use("/friends", friendRouter);
 
@@ -18,7 +31,7 @@ describe("Creating Users", () => {
     });
 
     it("should create a new user with valid data", async () => {
-      const response = await request(app).post("/users/createUser").send({
+      const response = await request(app).post("/users/create").send({
         email: "test@example.com",
         password: "testpassword123",
         name: "Test User",
@@ -31,7 +44,7 @@ describe("Creating Users", () => {
     });
 
     it("should fail to create duplicate user", async () => {
-      const response = await request(app).post("/users/createUser").send({
+      const response = await request(app).post("/users/create").send({
         email: "test@example.com",
         password: "testpassword123",
         name: "Test User",
@@ -44,7 +57,7 @@ describe("Creating Users", () => {
 
   describe("Invalid Data", () => {
     it("should fail to create if data is not present", async () => {
-      const response = await request(app).post("/users/createUser").send({
+      const response = await request(app).post("/users/create").send({
         email: " ",
         password: " ",
         name: " ",
@@ -54,7 +67,7 @@ describe("Creating Users", () => {
     });
 
     it("should fail to create if data is of wrong type", async () => {
-      const response = await request(app).post("/users/createUser").send({
+      const response = await request(app).post("/users/create").send({
         email: "email@.com",
         password: "sasf123",
         name: 23,
@@ -67,7 +80,7 @@ describe("Creating Users", () => {
     });
 
     it("should fail to create if password is too short", async () => {
-      const response = await request(app).post("/users/createUser").send({
+      const response = await request(app).post("/users/create").send({
         name: "Facundo",
         email: "email@.com",
         password: "xd",
@@ -77,6 +90,70 @@ describe("Creating Users", () => {
       expect(response.body.error).toBe(
         "Password must be at least 6 characters long"
       );
+    });
+  });
+});
+
+describe("Log In", () => {
+  let user;
+  beforeEach(async () => {
+    const hashedPassword = await bcrypt.hash("password123", 10);
+
+    user = await prisma.user.create({
+      data: {
+        email: "test@example.com",
+        password: hashedPassword,
+        name: "Test User",
+      },
+    });
+  });
+
+  afterEach(async () => {
+    await prisma.$queryRaw`TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;`;
+    await prisma.$disconnect();
+  });
+
+  describe("Valid Data", () => {
+    it("should log in with correct credentials", async () => {
+      const response = await request(app).post("/users/login").send({
+        email: "test@example.com",
+        password: "password123",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe("Login successful.");
+    });
+  });
+
+  describe("Invalid Data", () => {
+    it("should fail to log in with incorrect password", async () => {
+      const response = await request(app).post("/users/login").send({
+        email: "test@example.com",
+        password: "wrongpassword",
+      });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe("Wrong password.");
+    });
+
+    it("should fail to log in with non-existent email", async () => {
+      const response = await request(app).post("/users/login").send({
+        email: "nonexistent@example.com",
+        password: "password123",
+      });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe("User not found.");
+    });
+
+    it("should fail to log in if email or password is missing", async () => {
+      const response = await request(app).post("/users/login").send({
+        email: "",
+        password: "",
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Email and password are required.");
     });
   });
 });

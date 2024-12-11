@@ -2,11 +2,12 @@ const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
-const router = express.Router();
-const prisma = new PrismaClient();
 const validateString = require("../helpers/validateString");
 
-router.post("/createUser", async (req, res) => {
+const router = express.Router();
+const prisma = new PrismaClient();
+
+router.post("/create", async (req, res) => {
   const { email, password, name } = req.body;
 
   // validate strings
@@ -53,6 +54,62 @@ router.post("/createUser", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Failed to create user" });
   }
+});
+
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  // validate stuff
+  const emailValidated = validateString(email);
+  const passwordValidated = validateString(password, 6);
+
+  if (!emailValidated || !passwordValidated) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: emailValidated },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const passwordMatch = await bcrypt.compare(
+      passwordValidated,
+      existingUser.password
+    );
+
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "Wrong password." });
+    }
+
+    req.session.user = {
+      id: existingUser.id,
+      email: existingUser.email,
+      name: existingUser.name,
+    };
+
+    res
+      .status(200)
+      .json({ message: "Login successful.", user: req.session.user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "An error occurred during login." });
+  }
+});
+
+router.post("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to log out." });
+    }
+
+    res.clearCookie("fernandoalonso");
+    res.status(200).json({ message: "Logged out successfully." });
+  });
 });
 
 module.exports = router;
