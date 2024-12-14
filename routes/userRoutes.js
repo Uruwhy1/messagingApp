@@ -3,6 +3,7 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 const validateString = require("../helpers/validateString");
+const { user } = require("../prismaClient");
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -110,6 +111,39 @@ router.post("/logout", (req, res) => {
     res.clearCookie("fernandoalonso");
     res.status(200).json({ message: "Logged out successfully." });
   });
+});
+
+router.post("/friends/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  if (isNaN(+userId) || +userId <= 0) {
+    return res.status(400).json({ error: "User ID must be a valid number." });
+  }
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: { id: +userId },
+      select: { name: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found.",
+      });
+    }
+
+    const friends = await prisma.user.findFirst({
+      where: { id: +userId },
+      select: { friends: true },
+    });
+
+    return res.status(200).json(friends);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      error: "Something went wrong while fetching friends.",
+    });
+  }
 });
 
 module.exports = router;
