@@ -134,7 +134,13 @@ router.post("/friends/:userId", async (req, res) => {
 
     const friends = await prisma.user.findFirst({
       where: { id: +userId },
-      select: { friends: true },
+      select: {
+        friends: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
     return res.status(200).json(friends);

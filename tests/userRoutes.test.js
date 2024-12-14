@@ -362,11 +362,9 @@ describe("Fetching Friends", () => {
     expect(response.body.friends).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          email: friend1.email,
           name: friend1.name,
         }),
         expect.objectContaining({
-          email: friend2.email,
           name: friend2.name,
         }),
       ])
