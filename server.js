@@ -3,6 +3,7 @@ const session = require("express-session");
 
 const userRouter = require("./routes/userRoutes");
 const friendRouter = require("./routes/friendRoutes");
+const conversationRouter = require("./routes/conversationRoutes");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(
 
 app.use("/users", userRouter);
 app.use("/friends", friendRouter);
+app.use("/conversations", conversationRouter);
 
 const PORT = process.env.PORT || 3000;
 
