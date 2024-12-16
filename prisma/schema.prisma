@@ -38,8 +38,9 @@ model Message {
 }
 
 model Conversation {
-  id   Int      @id @default(autoincrement())
-  date DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   messages Message[]
   users    ConversationUser[]
