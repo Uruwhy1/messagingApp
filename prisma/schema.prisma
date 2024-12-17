@@ -24,6 +24,7 @@ model User {
 
   sentRequests     FriendRequest[] @relation("SentRequests")
   receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  Conversation     Conversation[]
 }
 
 model Message {
@@ -41,6 +42,9 @@ model Conversation {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  admin   User @relation(fields: [adminId], references: [id])
+  adminId Int
 
   messages Message[]
   users    ConversationUser[]

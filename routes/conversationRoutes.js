@@ -5,12 +5,24 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 router.post("/create", async (req, res) => {
-  const { userIds } = req.body;
+  const { userIds, adminId } = req.body;
 
   if (!Array.isArray(userIds) || userIds.length < 2) {
     return res
       .status(400)
       .json({ error: "A conversation must include at least two users." });
+  }
+
+  if (!userIds.every((id) => typeof id === "number" && !isNaN(id))) {
+    return res
+      .status(400)
+      .json({ error: "All user IDs must be valid numbers." });
+  }
+
+  if (!adminId || !userIds.includes(adminId)) {
+    return res.status(400).json({
+      error: "Admin ID must be one of the users in the conversation.",
+    });
   }
 
   try {
@@ -24,6 +36,7 @@ router.post("/create", async (req, res) => {
 
     const conversation = await prisma.conversation.create({
       data: {
+        admin: { connect: { id: adminId } },
         users: {
           create: userIds.map((userId) => ({
             user: { connect: { id: userId } },

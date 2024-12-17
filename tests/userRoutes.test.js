@@ -533,6 +533,7 @@ describe("Conversations Routes", () => {
           .post("/conversations/create")
           .send({
             userIds: [user1.id, user2.id],
+            adminId: user1.id,
           });
 
         expect(response.status).toBe(201);
@@ -540,21 +541,48 @@ describe("Conversations Routes", () => {
       });
     });
 
-    describe("Invalid Requets", () => {
+    describe("Invalid Requests", () => {
       it("should fail to create a conversation with invalid user IDs", async () => {
         const response = await request(app)
           .post("/conversations/create")
           .send({
+            userIds: [user1.id, "Xd"],
+            adminId: user1.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe("All user IDs must be valid numbers.");
+      });
+
+      it("should fail to create a conversation with non-existant user IDs", async () => {
+        const response = await request(app)
+          .post("/conversations/create")
+          .send({
             userIds: [user1.id, -1],
+            adminId: user1.id,
           });
 
         expect(response.status).toBe(400);
         expect(response.body.error).toBe("One or more users not found.");
       });
 
+      it("should fail to create a conversation without an admin ID", async () => {
+        const response = await request(app)
+          .post("/conversations/create")
+          .send({
+            userIds: [user1.id, user2.id],
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          "Admin ID must be one of the users in the conversation."
+        );
+      });
+
       it("should fail to create a conversation with an empty array", async () => {
         const response = await request(app).post("/conversations/create").send({
           userIds: [],
+          adminId: user1.id,
         });
 
         expect(response.status).toBe(400);
@@ -563,10 +591,24 @@ describe("Conversations Routes", () => {
         );
       });
 
-      it("should fail to create a conversation without an users array", async () => {
+      it("should fail to create a conversation when admin is not part of users", async () => {
         const response = await request(app)
           .post("/conversations/create")
-          .send();
+          .send({
+            userIds: [user2.id, user3.id], // Admin not in userIds
+            adminId: user1.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          "Admin ID must be one of the users in the conversation."
+        );
+      });
+
+      it("should fail to create a conversation without a users array", async () => {
+        const response = await request(app).post("/conversations/create").send({
+          adminId: user1.id,
+        });
 
         expect(response.status).toBe(400);
         expect(response.body.error).toBe(
@@ -585,6 +627,7 @@ describe("Conversations Routes", () => {
         .post("/conversations/create")
         .send({
           userIds: [user1.id, user2.id],
+          adminId: user1.id,
         });
     });
 
@@ -598,7 +641,7 @@ describe("Conversations Routes", () => {
         expect(response.body).toHaveLength(1);
       });
 
-      it("should return empty array if there are no conversations", async () => {
+      it("should return an empty array if the user has no conversations", async () => {
         const response = await request(app).get(
           `/conversations/user/${user3.id}`
         );
@@ -608,17 +651,19 @@ describe("Conversations Routes", () => {
       });
     });
 
-    describe("Invalid Requets", () => {
-      it("should fail with invalid userId", async () => {
+    describe("Invalid Requests", () => {
+      it("should fail with a non-numeric userId", async () => {
         const response = await request(app).get(`/conversations/user/meow`);
 
         expect(response.status).toBe(400);
+        expect(response.body.error).toBe("Invalid user ID");
       });
 
-      it("should fail with unexistent user", async () => {
+      it("should fail when the user does not exist", async () => {
         const response = await request(app).get(`/conversations/user/-1`);
 
         expect(response.status).toBe(404);
+        expect(response.body.error).toBe("User not found");
       });
     });
   });
@@ -629,9 +674,11 @@ describe("Conversations Routes", () => {
     beforeAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Message" RESTART IDENTITY CASCADE;`;
 
       conversation = await prisma.conversation.create({
         data: {
+          admin: { connect: { id: user1.id } },
           users: {
             create: [{ userId: user1.id }, { userId: user2.id }],
           },
@@ -670,6 +717,7 @@ describe("Conversations Routes", () => {
 
         expect(response.status).toBe(200);
         expect(response.body.messages.length).toBe(2);
+        expect(response.body.id).toBe(conversation.id);
       });
 
       it("should return messages in ascending order by date", async () => {
