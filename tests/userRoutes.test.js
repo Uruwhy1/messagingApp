@@ -491,7 +491,7 @@ describe("Friend Routes", () => {
 });
 
 describe("Conversations Routes", () => {
-  let user1, user2;
+  let user1, user2, user3;
 
   beforeAll(async () => {
     user1 = await prisma.user.create({
@@ -509,6 +509,14 @@ describe("Conversations Routes", () => {
         name: "User 2",
       },
     });
+
+    user3 = await prisma.user.create({
+      data: {
+        email: "user3@example.com",
+        password: "password3",
+        name: "User 3",
+      },
+    });
   });
 
   afterAll(async () => {
@@ -518,30 +526,32 @@ describe("Conversations Routes", () => {
     await prisma.$disconnect();
   });
 
-  describe.only("Creating Conversations", () => {
-    it("should create a new conversation and add users to it", async () => {
-      const response = await request(app)
-        .post("/conversations/create")
-        .send({
-          userIds: [user1.id, user2.id],
-        });
+  describe("Creating Conversations", () => {
+    describe("Valid Requests", () => {
+      it("should create a new conversation and add users to it", async () => {
+        const response = await request(app)
+          .post("/conversations/create")
+          .send({
+            userIds: [user1.id, user2.id],
+          });
 
-      expect(response.status).toBe(201);
-      expect(response.body).toBe(1);
+        expect(response.status).toBe(201);
+        expect(response.body).toBe(1);
+      });
     });
 
-    it("should fail to create a conversation with invalid user IDs", async () => {
-      const response = await request(app)
-        .post("/conversations/create")
-        .send({
-          userIds: [user1.id, -1],
-        });
+    describe("Invalid Requets", () => {
+      it("should fail to create a conversation with invalid user IDs", async () => {
+        const response = await request(app)
+          .post("/conversations/create")
+          .send({
+            userIds: [user1.id, -1],
+          });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe("One or more users not found.");
-    });
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe("One or more users not found.");
+      });
 
-    describe("Empty Requets", () => {
       it("should fail to create a conversation with an empty array", async () => {
         const response = await request(app).post("/conversations/create").send({
           userIds: [],
@@ -562,6 +572,130 @@ describe("Conversations Routes", () => {
         expect(response.body.error).toBe(
           "A conversation must include at least two users."
         );
+      });
+    });
+  });
+
+  describe("Fetching by User", () => {
+    beforeAll(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
+
+      await request(app)
+        .post("/conversations/create")
+        .send({
+          userIds: [user1.id, user2.id],
+        });
+    });
+
+    describe("Valid Requests", () => {
+      it("should fetch user conversations", async () => {
+        const response = await request(app).get(
+          `/conversations/user/${user1.id}`
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveLength(1);
+      });
+
+      it("should return empty array if there are no conversations", async () => {
+        const response = await request(app).get(
+          `/conversations/user/${user3.id}`
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveLength(0);
+      });
+    });
+
+    describe("Invalid Requets", () => {
+      it("should fail with invalid userId", async () => {
+        const response = await request(app).get(`/conversations/user/meow`);
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should fail with unexistent user", async () => {
+        const response = await request(app).get(`/conversations/user/-1`);
+
+        expect(response.status).toBe(404);
+      });
+    });
+  });
+
+  describe("Fetching Specific Conversation", () => {
+    let conversation, message1, message2;
+
+    beforeAll(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
+
+      conversation = await prisma.conversation.create({
+        data: {
+          users: {
+            create: [{ userId: user1.id }, { userId: user2.id }],
+          },
+        },
+      });
+
+      message1 = await prisma.message.create({
+        data: {
+          content: "Hello",
+          authorId: user1.id,
+          conversationId: conversation.id,
+        },
+      });
+
+      message2 = await prisma.message.create({
+        data: {
+          content: "Hi there",
+          authorId: user2.id,
+          conversationId: conversation.id,
+        },
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "Message" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;`;
+    });
+
+    describe("Valid Requests", () => {
+      it("should fetch a conversation with its details", async () => {
+        const response = await request(app).get(
+          `/conversations/${conversation.id}`
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.messages.length).toBe(2);
+      });
+
+      it("should return messages in ascending order by date", async () => {
+        const response = await request(app).get(
+          `/conversations/${conversation.id}`
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.messages[0].content).toBe("Hello");
+        expect(response.body.messages[1].content).toBe("Hi there");
+      });
+    });
+
+    describe("Invalid Requests", () => {
+      it("should return 400 for invalid conversation ID", async () => {
+        const response = await request(app).get("/conversations/invalid");
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe("Invalid conversation ID");
+      });
+
+      it("should return 404 for non-existent conversation", async () => {
+        const response = await request(app).get("/conversations/9999");
+
+        expect(response.status).toBe(404);
+        expect(response.body.error).toBe("Conversation not found");
       });
     });
   });

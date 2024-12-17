@@ -43,7 +43,7 @@ router.post("/create", async (req, res) => {
 
 router.get("/user/:userId", async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = parseInt(req.params.userId, 10);
 
     if (isNaN(userId)) {
       return res.status(400).json({ error: "Invalid user ID" });
@@ -61,15 +61,19 @@ router.get("/user/:userId", async (req, res) => {
       where: {
         users: {
           some: {
-            id: userId,
+            userId: userId,
           },
         },
       },
       include: {
         users: {
           select: {
-            id: true,
-            name: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         _count: {
@@ -83,10 +87,10 @@ router.get("/user/:userId", async (req, res) => {
       },
     });
 
-    res.json(conversations);
+    return res.status(200).json(conversations);
   } catch (error) {
     console.error("Error fetching user conversations:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -103,8 +107,12 @@ router.get("/:conversationId", async (req, res) => {
       include: {
         users: {
           select: {
-            id: true,
-            name: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         messages: {
