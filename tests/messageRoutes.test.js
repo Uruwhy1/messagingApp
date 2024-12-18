@@ -1,13 +1,6 @@
 const request = require("supertest");
-const { PrismaClient } = require("@prisma/client");
-const express = require("express");
-const messageRouter = require("../routes/messageRoutes");
-
-const app = express();
-app.use(express.json());
-app.use("/:conversationId/messages", messageRouter);
-
-const prisma = new PrismaClient();
+const prisma = require("../prismaClient.js");
+const { app } = require("./serverTests");
 
 describe("Message Routes", () => {
   let user1, user2, conversation;
@@ -51,9 +44,9 @@ describe("Message Routes", () => {
     describe("Valid Requests", () => {
       it("should create a message successfully", async () => {
         const response = await request(app)
-          .post(`/${conversation.id}/messages`)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", user1.id.toString())
           .send({
-            authorId: user1.id.toString(),
             content: "Hello, this is a test message",
           });
 
@@ -65,15 +58,17 @@ describe("Message Routes", () => {
       });
 
       it("should allow multiple messages in the same conversation", async () => {
-        await request(app).post(`/${conversation.id}/messages`).send({
-          authorId: user1.id.toString(),
-          content: "First message",
-        });
+        await request(app)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", user1.id.toString())
+          .send({
+            content: "First message",
+          });
 
         const response = await request(app)
-          .post(`/${conversation.id}/messages`)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", user2.id.toString())
           .send({
-            authorId: user2.id.toString(),
             content: "Second message",
           });
 
@@ -86,7 +81,8 @@ describe("Message Routes", () => {
     describe("Invalid Requests", () => {
       it("should fail if required fields are missing", async () => {
         const response = await request(app)
-          .post(`/${conversation.id}/messages`)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", user1.id.toString())
           .send({});
 
         expect(response.status).toBe(400);
@@ -95,9 +91,9 @@ describe("Message Routes", () => {
 
       it("should fail if authorId is not a number", async () => {
         const response = await request(app)
-          .post(`/${conversation.id}/messages`)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", "not-a-number")
           .send({
-            authorId: "not-a-number",
             content: "Test message",
           });
 
@@ -107,9 +103,9 @@ describe("Message Routes", () => {
 
       it("should fail if user does not exist", async () => {
         const response = await request(app)
-          .post(`/${conversation.id}/messages`)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", "99999")
           .send({
-            authorId: "99999",
             content: "Test message",
           });
 
@@ -118,10 +114,12 @@ describe("Message Routes", () => {
       });
 
       it("should fail if conversation does not exist", async () => {
-        const response = await request(app).post("/99999/messages").send({
-          authorId: user1.id.toString(),
-          content: "Test message",
-        });
+        const response = await request(app)
+          .post("/conversations/99999/message")
+          .set("userid", user1.id.toString())
+          .send({
+            content: "Test message",
+          });
 
         expect(response.status).toBe(404);
         expect(response.body.error).toBe("Conversation not found");
@@ -137,9 +135,9 @@ describe("Message Routes", () => {
         });
 
         const response = await request(app)
-          .post(`/${conversation.id}/messages`)
+          .post(`/conversations/${conversation.id}/message`)
+          .set("userid", user3.id.toString())
           .send({
-            authorId: user3.id.toString(),
             content: "Test message",
           });
 

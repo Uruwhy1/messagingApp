@@ -1,13 +1,7 @@
 const prisma = require("../prismaClient.js");
 const request = require("supertest");
-const friendRouter = require("../routes/friendRoutes.js");
-const userRouter = require("../routes/userRoutes.js");
-const express = require("express");
 
-const app = express();
-app.use(express.json());
-app.use("/users", userRouter);
-app.use("/friends", friendRouter);
+const { app } = require("./serverTests");
 
 describe("Friend Routes", () => {
   describe("Friend Requests", () => {

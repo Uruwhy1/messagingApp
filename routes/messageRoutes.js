@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 
 router.post("/", async (req, res) => {
   let { conversationId } = req.params;
-  let { authorId, content } = req.body;
+  let { content } = req.body;
+  let authorId = req.headers["userid"];
 
   try {
     if (!authorId || !conversationId || !content) {

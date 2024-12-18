@@ -1,25 +1,8 @@
 const prisma = require("../prismaClient.js");
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
-const userRouter = require("../routes/userRoutes.js");
 
-const session = require("express-session");
-const express = require("express");
-const app = express();
-
-app.use(express.json());
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 },
-    name: "fernandoalonso",
-  })
-)
-
-app.use("/users", userRouter);
+const { app } = require("./serverTests");
 
 describe("User Routes", () => {
   describe("Creating Users", () => {
