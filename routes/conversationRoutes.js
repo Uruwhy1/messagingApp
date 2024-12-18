@@ -43,6 +43,25 @@ router.post("/create", async (req, res) => {
           })),
         },
       },
+      include: {
+        users: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+
+    broadcastToUsers(userIds, {
+      type: "NEW_CONVERSATION",
+      data: { conversation },
     });
 
     res.status(201).json(conversation.id);
@@ -138,16 +157,6 @@ router.get("/user/:userId", async (req, res) => {
         },
       },
       include: {
-        users: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
         _count: {
           select: {
             messages: true,
