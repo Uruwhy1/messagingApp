@@ -38,7 +38,6 @@ router.post("/", async (req, res) => {
     const isUserInConversation = conversation.users.some(
       (cu) => cu.userId === authorId
     );
-    
     if (!isUserInConversation) {
       return res.status(403).json({ error: "User not in this conversation" });
     }
@@ -57,6 +56,14 @@ router.post("/", async (req, res) => {
           },
         },
       },
+    });
+
+    const userIds = conversation.users.map((cu) => cu.userId.toString());
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+
+    broadcastToUsers(userIds, {
+      type: "NEW_MESSAGE",
+      data: { conversationId, message: newMessage },
     });
 
     res.status(201).json(newMessage);
