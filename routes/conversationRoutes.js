@@ -54,6 +54,65 @@ router.post("/create", async (req, res) => {
   }
 });
 
+router.delete("/:conversationId/users/:userId", async (req, res) => {
+  const { conversationId, userId } = req.params;
+  const { requestId } = req.body;
+
+  if (isNaN(+conversationId) || isNaN(+requestId) || isNaN(+userId)) {
+    return res.status(400).json({ error: "IDs should be integers." });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: parseInt(conversationId) },
+      select: {
+        id: true,
+        adminId: true,
+        users: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    const isUserInConversation = conversation.users.some(
+      (user) => user.userId === parseInt(userId)
+    );
+
+    if (!isUserInConversation) {
+      return res
+        .status(400)
+        .json({ error: "User is not part of this conversation." });
+    }
+
+    if (
+      conversation.adminId !== parseInt(requestId) &&
+      parseInt(requestId) !== parseInt(userId)
+    ) {
+      return res.status(403).json({
+        error: "Only the admin or the user themselves can remove users.",
+      });
+    }
+
+    await prisma.conversationUser.deleteMany({
+      where: {
+        conversationId: parseInt(conversationId),
+        userId: parseInt(userId),
+      },
+    });
+
+    res.status(200).json({ message: "User removed from the conversation." });
+  } catch (error) {
+    console.error("Error removing user from conversation:", error);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 router.get("/user/:userId", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId, 10);

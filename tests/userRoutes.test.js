@@ -706,7 +706,6 @@ describe("Conversations Routes", () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Message" RESTART IDENTITY CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;`;
     });
 
     describe("Valid Requests", () => {
@@ -744,6 +743,79 @@ describe("Conversations Routes", () => {
 
         expect(response.status).toBe(404);
         expect(response.body.error).toBe("Conversation not found");
+      });
+    });
+  });
+
+  describe("Deleting User from Conversation", () => {
+    let conversationId;
+    beforeEach(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
+
+      const createdConversation = await request(app)
+        .post("/conversations/create")
+        .send({
+          userIds: [user1.id, user2.id],
+          adminId: user1.id,
+        });
+
+      conversationId = createdConversation.body;
+    });
+
+    describe("Valid Requests", () => {
+      it("admin should be able to remove users", async () => {
+        const response = await request(app)
+          .delete(`/conversations/${conversationId}/users/${user2.id}`)
+          .send({
+            requestId: user1.id,
+          });
+
+        expect(response.status).toBe(200);
+      });
+
+      it("user should be able to leave", async () => {
+        const response = await request(app)
+          .delete(`/conversations/${conversationId}/users/${user2.id}`)
+          .send({
+            requestId: user2.id,
+          });
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe("Invalid Requests", () => {
+      it("should not be able to remove other user if not admin", async () => {
+        const response = await request(app)
+          .delete(`/conversations/${conversationId}/users/${user1.id}`)
+          .send({
+            requestId: user2.id,
+          });
+
+        expect(response.status).toBe(403);
+      });
+
+      it("invalid userId", async () => {
+        const response = await request(app)
+          .delete(`/conversations/${conversationId}/users/-1`)
+          .send({
+            requestId: user2.id,
+          });
+
+        const response2 = await request(app)
+          .delete(`/conversations/${conversationId}/users/asdsad`)
+          .send({
+            requestId: user2.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          "User is not part of this conversation."
+        );
+
+        expect(response2.status).toBe(400);
+        expect(response2.body.error).toBe("IDs should be integers.");
       });
     });
   });
