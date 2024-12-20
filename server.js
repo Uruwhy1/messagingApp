@@ -2,11 +2,13 @@ const express = require("express");
 const session = require("express-session");
 const http = require("http");
 const WebSocket = require("ws");
+const cors = require("cors");
 
 const userRouter = require("./routes/userRoutes");
 const friendRouter = require("./routes/friendRoutes");
 const messageRouter = require("./routes/messageRoutes");
 const conversationRouter = require("./routes/conversationRoutes");
+const { Console } = require("console");
 
 const app = express();
 const server = http.createServer(app);
@@ -15,10 +17,9 @@ const wss = new WebSocket.Server({ server });
 const usersOnline = new Map();
 
 wss.on("connection", (ws, req) => {
-  const userId = new URL(
-    req.url,
-    `http://${req.headers.host}`
-  ).searchParams.get("userId");
+  const userId = new URL(req.url, `/${req.headers.host}`).searchParams.get(
+    "userId"
+  );
 
   if (userId) {
     if (!usersOnline.has(userId)) {
@@ -48,6 +49,21 @@ const broadcastToUsers = (userIds, event) => {
 app.locals.wss = wss;
 app.locals.broadcastToUsers = broadcastToUsers;
 
+const allowedOrigins = process.env.FRONTEND;
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 app.use(
@@ -55,7 +71,10 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 },
+    cookie: {
+      secure: false,
+      maxAge: 1000 * 60 * 60 * 24,
+    },
     name: "fernandoalonso",
   })
 );
