@@ -17,9 +17,10 @@ const wss = new WebSocket.Server({ server });
 const usersOnline = new Map();
 
 wss.on("connection", (ws, req) => {
-  const userId = new URL(req.url, `/${req.headers.host}`).searchParams.get(
-    "userId"
-  );
+  const userId = new URL(
+    req.url,
+    `http://${req.headers.host}`
+  ).searchParams.get("userId");
 
   if (userId) {
     if (!usersOnline.has(userId)) {
