@@ -4,7 +4,7 @@
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand",
-    "start": "node --watch server.js "
+    "start": "node seed.js && node --watch server.js "
   },
   "dependencies": {
     "@prisma/client": "^6.0.1",
