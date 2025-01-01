@@ -58,6 +58,7 @@ router.post("/create", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
+  console.log(email, password);
   // validate stuff
   const emailValidated = validateString(email);
   const passwordValidated = validateString(password, 6);
@@ -97,6 +98,14 @@ router.post("/login", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "An error occurred during login." });
   }
+});
+
+router.get("/session", (req, res) => {
+  if (req.session && req.session.user) {
+    return res.status(200).json({ user: req.session.user });
+  }
+
+  return res.status(401).json({ error: "No active session." });
 });
 
 router.post("/logout", (req, res) => {

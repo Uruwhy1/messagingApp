@@ -8,7 +8,6 @@ const userRouter = require("./routes/userRoutes");
 const friendRouter = require("./routes/friendRoutes");
 const messageRouter = require("./routes/messageRoutes");
 const conversationRouter = require("./routes/conversationRoutes");
-const { Console } = require("console");
 
 const app = express();
 const server = http.createServer(app);
