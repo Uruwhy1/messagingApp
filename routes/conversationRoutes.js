@@ -5,7 +5,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 router.post("/create", async (req, res) => {
-  const { userIds, adminId } = req.body;
+  let { userIds, adminId, name } = req.body;
 
   if (!Array.isArray(userIds) || userIds.length < 2) {
     return res
@@ -25,6 +25,12 @@ router.post("/create", async (req, res) => {
     });
   }
 
+  if (!name) {
+    name = "";
+  } else {
+    name = name.toString();
+  }
+
   try {
     const existingUsers = await prisma.user.findMany({
       where: { id: { in: userIds } },
@@ -42,6 +48,7 @@ router.post("/create", async (req, res) => {
             user: { connect: { id: userId } },
           })),
         },
+        name: name,
       },
       include: {
         users: {

@@ -1,25 +1,53 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
+const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function seedDatabase() {
   try {
     // Clear existing data
-    await prisma.message.deleteMany({});
-    await prisma.conversationUser.deleteMany({});
-    await prisma.conversation.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.$executeRawUnsafe(
+      `TRUNCATE TABLE "Message" RESTART IDENTITY CASCADE;`
+    );
+    await prisma.$executeRawUnsafe(
+      `TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`
+    );
+    await prisma.$executeRawUnsafe(
+      `TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`
+    );
+    await prisma.$executeRawUnsafe(
+      `TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;`
+    );
 
-    console.log('Cleared existing data');
+    console.log("Cleared existing data");
 
     // Create users with hashed passwords
     const users = await Promise.all(
       [
-        { name: 'Alice Johnson', email: 'alice@example.com', password: 'password123' },
-        { name: 'Bob Smith', email: 'bob@example.com', password: 'password123' },
-        { name: 'Charlie Brown', email: 'charlie@example.com', password: 'password123' },
-        { name: 'Diana Prince', email: 'diana@example.com', password: 'password123' },
-        { name: 'Edward Stark', email: 'edward@example.com', password: 'password123' },
+        {
+          name: "Alice Johnson",
+          email: "alice@example.com",
+          password: "password123",
+        },
+        {
+          name: "Bob Smith",
+          email: "bob@example.com",
+          password: "password123",
+        },
+        {
+          name: "Charlie Brown",
+          email: "charlie@example.com",
+          password: "password123",
+        },
+        {
+          name: "Diana Prince",
+          email: "diana@example.com",
+          password: "password123",
+        },
+        {
+          name: "Edward Stark",
+          email: "edward@example.com",
+          password: "password123",
+        },
       ].map(async (userData) => {
         const hashedPassword = await bcrypt.hash(userData.password, 10);
         return prisma.user.create({
@@ -32,7 +60,7 @@ async function seedDatabase() {
       })
     );
 
-    console.log('Created users:', users.map(u => u.name).join(', '));
+    console.log("Created users:", users.map((u) => u.name).join(", "));
 
     // Create some conversations
     const conversations = await Promise.all([
@@ -45,6 +73,7 @@ async function seedDatabase() {
               user: { connect: { id: user.id } },
             })),
           },
+          name: "League of Legends Group Chat",
         },
       }),
       // Private conversation between Alice and Bob
@@ -57,25 +86,26 @@ async function seedDatabase() {
               { user: { connect: { id: users[1].id } } },
             ],
           },
+          name: "Alice & Bob <3",
         },
       }),
     ]);
 
-    console.log('Created conversations:', conversations.length);
+    console.log("Created conversations:", conversations.length);
 
     // Add some initial messages
     const messages = await Promise.all([
       // Messages in group conversation
       prisma.message.create({
         data: {
-          content: 'Hello everyone! Welcome to the group chat!',
+          content: "Hello everyone! Welcome to the group chat!",
           authorId: users[0].id,
           conversationId: conversations[0].id,
         },
       }),
       prisma.message.create({
         data: {
-          content: 'Hi Alice! Thanks for creating this group!',
+          content: "Hi Alice! Thanks for creating this group!",
           authorId: users[1].id,
           conversationId: conversations[0].id,
         },
@@ -83,24 +113,24 @@ async function seedDatabase() {
       // Messages in private conversation
       prisma.message.create({
         data: {
-          content: 'Hey Bob, how are you?',
+          content: "Hey Bob, how are you?",
           authorId: users[0].id,
           conversationId: conversations[1].id,
         },
       }),
       prisma.message.create({
         data: {
-          content: 'Doing great Alice, thanks for asking!',
+          content: "Doing great Alice, thanks for asking!",
           authorId: users[1].id,
           conversationId: conversations[1].id,
         },
       }),
     ]);
 
-    console.log('Created messages:', messages.length);
+    console.log("Created messages:", messages.length);
 
-    console.log('Database seeded successfully!');
-    
+    console.log("Database seeded successfully!");
+
     // Return created data for reference
     return {
       users,
@@ -108,7 +138,7 @@ async function seedDatabase() {
       messages,
     };
   } catch (error) {
-    console.error('Error seeding database:', error);
+    console.error("Error seeding database:", error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -118,12 +148,12 @@ async function seedDatabase() {
 // Execute the seed function
 seedDatabase()
   .then((data) => {
-    console.log('Seeding complete!');
-    console.log('Created users:', data.users.length);
-    console.log('Created conversations:', data.conversations.length);
-    console.log('Created messages:', data.messages.length);
+    console.log("Seeding complete!");
+    console.log("Created users:", data.users.length);
+    console.log("Created conversations:", data.conversations.length);
+    console.log("Created messages:", data.messages.length);
   })
   .catch((error) => {
-    console.error('Failed to seed database:', error);
+    console.error("Failed to seed database:", error);
     process.exit(1);
   });
