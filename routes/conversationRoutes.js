@@ -169,13 +169,40 @@ router.get("/user/:userId", async (req, res) => {
             messages: true,
           },
         },
+        messages: {
+          take: 1,
+          orderBy: {
+            date: "desc",
+          },
+          include: {
+            author: true,
+          },
+        },
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
 
-    return res.status(200).json(conversations);
+    const response = conversations.map((conversation) => {
+      const lastMessage = conversation.messages[0] || null;
+      return {
+        id: conversation.id,
+        title: conversation.name,
+        updatedAt: conversation.updatedAt,
+        lastMessage: lastMessage
+          ? {
+              content: lastMessage.content,
+              createdAt: lastMessage.date,
+              user: {
+                name: lastMessage.author.name,
+              },
+            }
+          : null,
+      };
+    });
+
+    return res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching user conversations:", error);
     return res.status(500).json({ error: "Internal server error" });
