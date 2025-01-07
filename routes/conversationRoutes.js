@@ -40,6 +40,28 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "One or more users not found." });
     }
 
+    const adminWithFriends = await prisma.user.findUnique({
+      where: { id: adminId },
+      include: { friends: { select: { id: true } } },
+    });
+
+    if (!adminWithFriends) {
+      return res.status(404).json({ error: "Admin user not found." });
+    }
+
+    const adminFriendIds = adminWithFriends.friends.map((friend) => friend.id);
+
+    const nonAdminUserIds = userIds.filter((id) => id !== adminId);
+    const areAllFriends = nonAdminUserIds.every((id) =>
+      adminFriendIds.includes(id)
+    );
+
+    if (!areAllFriends) {
+      return res.status(400).json({
+        error: "All users in the conversation must be friends with the admin.",
+      });
+    }
+
     const conversation = await prisma.conversation.create({
       data: {
         admin: { connect: { id: adminId } },
@@ -181,7 +203,7 @@ router.get("/user/:userId", async (req, res) => {
         users: {
           include: {
             user: {
-              select: { name: true }, // Include only the user's name
+              select: { name: true, id: true },
             },
           },
         },
@@ -197,7 +219,7 @@ router.get("/user/:userId", async (req, res) => {
         id: conversation.id,
         title: conversation.name,
         updatedAt: conversation.updatedAt,
-        users: conversation.users.map((u) => u.user.name), // Map over user names
+        users: conversation.users.map((u) => u.user),
         lastMessage: lastMessage
           ? {
               content: lastMessage.content,

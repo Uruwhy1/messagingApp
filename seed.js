@@ -62,21 +62,59 @@ async function seedDatabase() {
 
     console.log("Created users:", users.map((u) => u.name).join(", "));
 
-    // Create some conversations
-    const conversations = await Promise.all([
-      // Group conversation
-      prisma.conversation.create({
+    // Establish friendships
+    await Promise.all([
+      prisma.user.update({
+        where: { id: users[0].id }, // Alice
         data: {
-          admin: { connect: { id: users[0].id } },
-          users: {
-            create: users.map((user) => ({
-              user: { connect: { id: user.id } },
-            })),
-          },
-          name: "League of Legends Group Chat",
+          friends: { connect: [{ id: users[1].id }, { id: users[2].id }] }, // Bob and Charlie
         },
       }),
-      // Private conversation between Alice and Bob
+      prisma.user.update({
+        where: { id: users[1].id }, // Bob
+        data: {
+          friends: { connect: [{ id: users[0].id }, { id: users[3].id }] }, // Alice and Diana
+        },
+      }),
+      prisma.user.update({
+        where: { id: users[2].id }, // Charlie
+        data: {
+          friends: { connect: [{ id: users[0].id }] }, // Alice
+        },
+      }),
+      prisma.user.update({
+        where: { id: users[3].id }, // Diana
+        data: {
+          friends: { connect: [{ id: users[1].id }] }, // Bob
+        },
+      }),
+      prisma.user.update({
+        where: { id: users[4].id }, // Edward
+        data: {
+          friends: { connect: [] }, // No friends yet
+        },
+      }),
+    ]);
+
+    console.log("Friendships established");
+
+    // Create conversations
+    const conversations = await Promise.all([
+      // Group chat with more than two users
+      prisma.conversation.create({
+        data: {
+          admin: { connect: { id: users[0].id } }, // Alice is admin
+          users: {
+            create: [
+              { user: { connect: { id: users[0].id } } }, // Alice
+              { user: { connect: { id: users[1].id } } }, // Bob
+              { user: { connect: { id: users[2].id } } }, // Charlie
+            ],
+          },
+          name: "Study Group", // Group chat has a name
+        },
+      }),
+      // Private conversation between Alice and Bob (no name)
       prisma.conversation.create({
         data: {
           admin: { connect: { id: users[0].id } },
@@ -86,7 +124,20 @@ async function seedDatabase() {
               { user: { connect: { id: users[1].id } } },
             ],
           },
-          name: "Alice & Bob <3",
+          name: "", // No name for private conversations
+        },
+      }),
+      // Private conversation between Bob and Diana (no name)
+      prisma.conversation.create({
+        data: {
+          admin: { connect: { id: users[1].id } },
+          users: {
+            create: [
+              { user: { connect: { id: users[1].id } } },
+              { user: { connect: { id: users[3].id } } },
+            ],
+          },
+          name: "", // No name for private conversations
         },
       }),
     ]);
@@ -95,22 +146,13 @@ async function seedDatabase() {
 
     // Add some initial messages
     const messages = await Promise.all([
-      // Messages in group conversation
       prisma.message.create({
         data: {
-          content: "Hello everyone! Welcome to the group chat!",
+          content: "Welcome to the Study Group!",
           authorId: users[0].id,
           conversationId: conversations[0].id,
         },
       }),
-      prisma.message.create({
-        data: {
-          content: "Hi Alice! Thanks for creating this group!",
-          authorId: users[1].id,
-          conversationId: conversations[0].id,
-        },
-      }),
-      // Messages in private conversation
       prisma.message.create({
         data: {
           content: "Hey Bob, how are you?",
@@ -131,7 +173,6 @@ async function seedDatabase() {
 
     console.log("Database seeded successfully!");
 
-    // Return created data for reference
     return {
       users,
       conversations,
@@ -144,16 +185,4 @@ async function seedDatabase() {
     await prisma.$disconnect();
   }
 }
-
-// Execute the seed function
-seedDatabase()
-  .then((data) => {
-    console.log("Seeding complete!");
-    console.log("Created users:", data.users.length);
-    console.log("Created conversations:", data.conversations.length);
-    console.log("Created messages:", data.messages.length);
-  })
-  .catch((error) => {
-    console.error("Failed to seed database:", error);
-    process.exit(1);
-  });
+seedDatabase();

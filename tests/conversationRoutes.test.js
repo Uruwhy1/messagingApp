@@ -30,12 +30,48 @@ describe("Conversations Routes", () => {
         name: "User 3",
       },
     });
+
+    user4 = await prisma.user.create({
+      data: {
+        email: "user4@example.com",
+        password: "password4",
+        name: "Friendless User",
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: user1.id },
+      data: {
+        friends: {
+          connect: [{ id: user2.id }, { id: user3.id }],
+        },
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: user2.id },
+      data: {
+        friends: {
+          connect: [{ id: user1.id }],
+        },
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: user3.id },
+      data: {
+        friends: {
+          connect: [{ id: user1.id }],
+        },
+      },
+    });
   });
 
   afterAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "ConversationUser" RESTART IDENTITY CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Conversation" RESTART IDENTITY CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;`;
+    await prisma.$queryRaw`TRUNCATE TABLE "FriendRequest" RESTART IDENTITY CASCADE;`;
     await prisma.$disconnect();
   });
 
@@ -67,6 +103,19 @@ describe("Conversations Routes", () => {
         expect(response.body.error).toBe("All user IDs must be valid numbers.");
       });
 
+      it("should fail to create a conversation if users are not friends", async () => {
+        const response = await request(app)
+          .post("/conversations/create")
+          .send({
+            userIds: [user1.id, user4.id],
+            adminId: user1.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          "All users in the conversation must be friends with the admin."
+        );
+      });
       it("should fail to create a conversation with non-existant user IDs", async () => {
         const response = await request(app)
           .post("/conversations/create")
