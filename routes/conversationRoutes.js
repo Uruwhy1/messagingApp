@@ -178,6 +178,13 @@ router.get("/user/:userId", async (req, res) => {
             author: true,
           },
         },
+        users: {
+          include: {
+            user: {
+              select: { name: true }, // Include only the user's name
+            },
+          },
+        },
       },
       orderBy: {
         updatedAt: "desc",
@@ -190,6 +197,7 @@ router.get("/user/:userId", async (req, res) => {
         id: conversation.id,
         title: conversation.name,
         updatedAt: conversation.updatedAt,
+        users: conversation.users.map((u) => u.user.name), // Map over user names
         lastMessage: lastMessage
           ? {
               content: lastMessage.content,
