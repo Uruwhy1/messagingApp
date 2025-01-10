@@ -40,16 +40,22 @@ async function seedDatabase() {
           name: "Charlie Brown",
           email: "charlie@example.com",
           password: "password123",
+          picture:
+            "https://media.istockphoto.com/id/475728270/photo/guinea-fun.jpg?s=612x612&w=0&k=20&c=EFLFP3gU2OSbfEotMxTHyuojTIkNKy52GpDIQB5bwyM=",
         },
         {
           name: "Diana Prince",
           email: "diana@example.com",
           password: "password123",
+          picture:
+            "https://plus.unsplash.com/premium_photo-1694819488591-a43907d1c5cc?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8Y3V0ZSUyMGRvZ3xlbnwwfHwwfHx8MA%3D%3D",
         },
         {
           name: "Edward Stark",
           email: "edward@example.com",
           password: "password123",
+          picture:
+            "https://images.squarespace-cdn.com/content/v1/5369465be4b0507a1fd05af0/1528837069483-LD1R6EJDDHBY8LBPVHIU/randall-ruiz-272502.jpg",
         },
       ].map(async (userData) => {
         const hashedPassword = await bcrypt.hash(userData.password, 10);
