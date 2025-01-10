@@ -27,6 +27,8 @@ async function seedDatabase() {
           name: "Alice Johnson",
           email: "alice@example.com",
           password: "password123",
+          picture:
+            "https://images.pexels.com/photos/2071882/pexels-photo-2071882.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
         },
         {
           name: "Bob Smith",
@@ -56,6 +58,7 @@ async function seedDatabase() {
             name: userData.name,
             email: userData.email,
             password: hashedPassword,
+            picture: userData.picture,
             description: userData.description,
           },
         });

@@ -146,6 +146,7 @@ router.get("/friends/:userId", async (req, res) => {
           select: {
             name: true,
             id: true,
+            picture: true,
           },
         },
       },

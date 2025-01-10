@@ -203,7 +203,7 @@ router.get("/user/:userId", async (req, res) => {
         users: {
           include: {
             user: {
-              select: { name: true, id: true },
+              select: { name: true, id: true, picture: true },
             },
           },
         },
