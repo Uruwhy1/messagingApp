@@ -72,22 +72,6 @@ router.post("/login", async (req, res) => {
       where: { email: emailValidated },
     });
 
-    /* ---------------------- FOR TESTING ----------------------- */
-    if (emailValidated == "bob@example.com") {
-      req.session.user = {
-        id: existingUser.id,
-        email: existingUser.email,
-        name: existingUser.name,
-      };
-
-      res
-        .status(200)
-        .json({ message: "Login successful.", user: req.session.user });
-
-      return;
-    }
-    /* --------------------------------------------------------------*/
-
     if (!existingUser) {
       return res.status(404).json({ error: "User not found." });
     }
@@ -136,7 +120,7 @@ router.post("/logout", (req, res) => {
   });
 });
 
-router.post("/friends/:userId", async (req, res) => {
+router.get("/friends/:userId", async (req, res) => {
   const userId = req.params.userId;
 
   if (isNaN(+userId) || +userId <= 0) {
@@ -161,6 +145,7 @@ router.post("/friends/:userId", async (req, res) => {
         friends: {
           select: {
             name: true,
+            id: true,
           },
         },
       },

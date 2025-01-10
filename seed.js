@@ -32,6 +32,7 @@ async function seedDatabase() {
           name: "Bob Smith",
           email: "bob@example.com",
           password: "password123",
+          description: "I am Bob.",
         },
         {
           name: "Charlie Brown",
@@ -55,6 +56,7 @@ async function seedDatabase() {
             name: userData.name,
             email: userData.email,
             password: hashedPassword,
+            description: userData.description,
           },
         });
       })

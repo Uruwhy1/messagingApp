@@ -183,7 +183,7 @@ describe("User Routes", () => {
     });
 
     it("should fetch the friends of a user", async () => {
-      const response = await request(app).post(
+      const response = await request(app).get(
         `/users/friends/${userWithFriends.id}`
       );
 
@@ -204,7 +204,7 @@ describe("User Routes", () => {
     });
 
     it("should return an empty array when user has no friends", async () => {
-      const response = await request(app).post(
+      const response = await request(app).get(
         `/users/friends/${userWithoutFriends.id}`
       );
 
@@ -214,14 +214,14 @@ describe("User Routes", () => {
     });
 
     it("should return 404 if user is not found", async () => {
-      const response = await request(app).post("/users/friends/999");
+      const response = await request(app).get("/users/friends/999");
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe("User not found.");
     });
 
     it("should return 400 if userId is invalid", async () => {
-      const response = await request(app).post("/users/friends/invalidId");
+      const response = await request(app).get("/users/friends/invalidId");
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe("User ID must be a valid number.");
