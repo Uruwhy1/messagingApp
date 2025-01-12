@@ -93,7 +93,7 @@ router.post("/create", async (req, res) => {
       data: { conversation },
     });
 
-    res.status(201).json(conversation.id);
+    res.status(201).json(conversation);
   } catch (error) {
     console.error("Failed to create conversation:", error);
     res
