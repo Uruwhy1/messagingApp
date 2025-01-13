@@ -79,6 +79,7 @@ router.post("/create", async (req, res) => {
               select: {
                 id: true,
                 name: true,
+                picture: true,
               },
             },
           },
@@ -93,7 +94,12 @@ router.post("/create", async (req, res) => {
       data: { conversation },
     });
 
-    res.status(201).json(conversation);
+    return res.json({
+      id: conversation.id,
+      title: conversation.name,
+      updatedAt: conversation.updatedAt,
+      users: conversation.users.map((u) => u.user),
+    });
   } catch (error) {
     console.error("Failed to create conversation:", error);
     res
