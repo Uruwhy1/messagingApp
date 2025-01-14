@@ -68,6 +68,30 @@ router.post("/create", async (req, res) => {
       });
     }
 
+    // do not allow duplicate chats (with two people)
+    if (userIds.length == 2) {
+      const existingConversation = await prisma.conversation.findFirst({
+        where: {
+          users: {
+            every: {
+              userId: { in: userIds },
+            },
+          },
+        },
+        include: {
+          users: {
+            select: name,
+          },
+        },
+      });
+
+      if (existingConversation.users.length == 2) {
+        return res.status(400).json({
+          error: "Existing conversation.",
+        });
+      }
+    }
+
     const conversation = await prisma.conversation.create({
       data: {
         admin: { connect: { id: adminId } },
