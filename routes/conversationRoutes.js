@@ -5,7 +5,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 router.post("/create", async (req, res) => {
-  let { userIds, adminId, name } = req.body;
+  let { userIds, adminId, name, picture } = req.body;
 
   if (!Array.isArray(userIds) || userIds.length < 2) {
     return res
@@ -29,6 +29,12 @@ router.post("/create", async (req, res) => {
     name = "";
   } else {
     name = name.toString();
+  }
+
+  if (!picture) {
+    picture = "";
+  } else {
+    picture = picture.toString();
   }
 
   try {
@@ -71,6 +77,7 @@ router.post("/create", async (req, res) => {
           })),
         },
         name: name,
+        picture: picture,
       },
       include: {
         users: {
@@ -94,9 +101,10 @@ router.post("/create", async (req, res) => {
       data: { conversation },
     });
 
-    return res.json({
+    return res.status(201).json({
       id: conversation.id,
       title: conversation.name,
+      picture: conversation.picture,
       updatedAt: conversation.updatedAt,
       users: conversation.users.map((u) => u.user),
     });
@@ -224,6 +232,7 @@ router.get("/user/:userId", async (req, res) => {
       return {
         id: conversation.id,
         title: conversation.name,
+        picture: conversation.picture,
         updatedAt: conversation.updatedAt,
         users: conversation.users.map((u) => u.user),
         lastMessage: lastMessage

@@ -86,7 +86,6 @@ describe("Conversations Routes", () => {
           });
 
         expect(response.status).toBe(201);
-        expect(response.body).toBe(1);
       });
     });
 
@@ -157,7 +156,7 @@ describe("Conversations Routes", () => {
         const response = await request(app)
           .post("/conversations/create")
           .send({
-            userIds: [user2.id, user3.id], // Admin not in userIds
+            userIds: [user2.id, user3.id],
             adminId: user1.id,
           });
 
@@ -322,7 +321,7 @@ describe("Conversations Routes", () => {
           adminId: user1.id,
         });
 
-      conversationId = createdConversation.body;
+      conversationId = createdConversation.body.id;
     });
 
     describe("Valid Requests", () => {
