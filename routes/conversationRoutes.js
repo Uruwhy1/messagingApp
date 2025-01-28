@@ -115,23 +115,21 @@ router.post("/create", async (req, res) => {
             },
           },
         },
+        messages: {},
       },
     });
 
+    const response = formatConversation(conversation, false);
+
     const broadcastToUsers = req.app.locals.broadcastToUsers;
+    const stringIds = conversation.users.map((cu) => cu.user.id.toString());
 
-    broadcastToUsers(userIds, {
+    broadcastToUsers(stringIds, {
       type: "NEW_CONVERSATION",
-      data: { conversation },
+      data: response,
     });
 
-    return res.status(201).json({
-      id: conversation.id,
-      title: conversation.name,
-      picture: conversation.picture,
-      updatedAt: conversation.updatedAt,
-      users: conversation.users.map((u) => u.user),
-    });
+    return res.status(201);
   } catch (error) {
     console.error("Failed to create conversation:", error);
     res
@@ -315,6 +313,7 @@ function formatConversation(conversation, includeAllMessages = false) {
         content: message.content,
         createdAt: message.date,
         authorId: message.authorId,
+        id: message.id,
       })),
     };
   }
