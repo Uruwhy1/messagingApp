@@ -11,6 +11,7 @@ router.post("/", async (req, res) => {
 
   try {
     if (!authorId || !conversationId || !content) {
+      console.log(content, authorId, conversationId);
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -62,12 +63,21 @@ router.post("/", async (req, res) => {
     const userIds = conversation.users.map((cu) => cu.userId.toString());
     const broadcastToUsers = req.app.locals.broadcastToUsers;
 
+    const response = {
+      id: newMessage.id,
+      content: newMessage.content,
+      createdAt: newMessage.date,
+      authorId: newMessage.author.id,
+      authorName: newMessage.author.name,
+      conversation: newMessage.conversationId,
+    };
+
     broadcastToUsers(userIds, {
       type: "NEW_MESSAGE",
-      data: { conversationId, message: newMessage },
+      data: { conversationId, message: response },
     });
 
-    res.status(201).json(newMessage);
+    res.status(201).json(response);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to send message" });

@@ -251,26 +251,9 @@ router.get("/user/:userId", async (req, res) => {
       },
     });
 
-    const response = conversations.map((conversation) => {
-      const lastMessage = conversation.messages[0] || null;
-      return {
-        id: conversation.id,
-        title: conversation.name,
-        picture: conversation.picture,
-        updatedAt: conversation.updatedAt,
-        users: conversation.users.map((u) => u.user),
-        lastMessage: lastMessage
-          ? {
-              content: lastMessage.content,
-              createdAt: lastMessage.date,
-              user: {
-                name: lastMessage.author.name,
-              },
-            }
-          : null,
-      };
-    });
-
+    const response = conversations.map((conversation) =>
+      formatConversation(conversation)
+    );
     return res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching user conversations:", error);
@@ -290,23 +273,16 @@ router.get("/:conversationId", async (req, res) => {
       where: { id: conversationId },
       include: {
         users: {
-          select: {
+          include: {
             user: {
-              select: {
-                id: true,
-                name: true,
-              },
+              select: { name: true, id: true, picture: true },
             },
           },
         },
         messages: {
           orderBy: { date: "asc" },
-          take: 20,
-          select: {
-            id: true,
-            content: true,
-            authorId: true,
-            date: true,
+          include: {
+            author: true,
           },
         },
       },
@@ -316,11 +292,47 @@ router.get("/:conversationId", async (req, res) => {
       return res.status(404).json({ error: "Conversation not found" });
     }
 
-    res.json(conversation);
+    res.json(formatConversation(conversation, true));
   } catch (error) {
     console.error("Error fetching conversation:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+function formatConversation(conversation, includeAllMessages = false) {
+  const baseStructure = {
+    id: conversation.id,
+    title: conversation.name,
+    picture: conversation.picture,
+    updatedAt: conversation.updatedAt,
+    users: conversation.users.map((u) => u.user),
+  };
+
+  if (includeAllMessages) {
+    return {
+      ...baseStructure,
+      messages: conversation.messages.map((message) => ({
+        content: message.content,
+        createdAt: message.date,
+        authorId: message.authorId,
+      })),
+    };
+  }
+
+  const lastMessage = conversation.messages[0] || null;
+  return {
+    ...baseStructure,
+    lastMessage: lastMessage
+      ? {
+          content: lastMessage.content,
+          createdAt: lastMessage.date,
+          user: {
+            name: lastMessage.author.name,
+            id: lastMessage.authorId,
+          },
+        }
+      : null,
+  };
+}
 
 module.exports = router;
