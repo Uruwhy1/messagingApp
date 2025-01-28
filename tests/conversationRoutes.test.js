@@ -321,7 +321,7 @@ describe("Conversations Routes", () => {
           adminId: user1.id,
         });
 
-      conversationId = createdConversation.body.id;
+      conversationId = createdConversation.body;
     });
 
     describe("Valid Requests", () => {

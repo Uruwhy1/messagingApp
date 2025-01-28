@@ -85,7 +85,7 @@ router.post("/create", async (req, res) => {
         },
       });
 
-      if (existingConversation.users.length == 2) {
+      if (existingConversation?.users?.length == 2) {
         return res.status(400).json({
           error: "Existing conversation.",
         });
@@ -129,7 +129,7 @@ router.post("/create", async (req, res) => {
       data: response,
     });
 
-    return res.status(201);
+    return res.status(201).json(conversation.id);
   } catch (error) {
     console.error("Failed to create conversation:", error);
     res
