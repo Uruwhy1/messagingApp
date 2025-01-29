@@ -1,17 +1,17 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
+const authenticateUser = require("../middleware/auth");
 
 const router = express.Router({ mergeParams: true });
 const prisma = new PrismaClient();
 
-router.post("/", async (req, res) => {
+router.post("/", authenticateUser, async (req, res) => {
   let { conversationId } = req.params;
   let { content } = req.body;
-  let authorId = req.headers["userid"];
+  let authorId = req.user.id;
 
   try {
     if (!authorId || !conversationId || !content) {
-      console.log(content, authorId, conversationId);
       return res.status(400).json({ error: "Missing required fields" });
     }
 

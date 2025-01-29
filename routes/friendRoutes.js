@@ -1,11 +1,13 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
+const authenticateUser = require("../middleware/auth");
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.post("/send", async (req, res) => {
-  const { senderId, receiverId } = req.body;
+router.post("/send", authenticateUser, async (req, res) => {
+  const { receiverId } = req.body;
+  const senderId = req.user.id;
 
   if (senderId === receiverId) {
     return res
@@ -40,7 +42,7 @@ router.post("/send", async (req, res) => {
   }
 });
 
-router.post("/accept", async (req, res) => {
+router.post("/accept", authenticateUser, async (req, res) => {
   const { requestId } = req.body;
 
   try {
@@ -84,7 +86,7 @@ router.post("/accept", async (req, res) => {
   }
 });
 
-router.post("/reject", async (req, res) => {
+router.post("/reject", authenticateUser, async (req, res) => {
   const { requestId } = req.body;
 
   try {
