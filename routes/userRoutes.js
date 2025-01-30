@@ -177,4 +177,29 @@ router.get("/friends/:userId", async (req, res) => {
   }
 });
 
+router.get("/search", async (req, res) => {
+  const { query } = req.query;
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        name: {
+          contains: query,
+          mode: "insensitive",
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        picture: true,
+      },
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to search users" });
+  }
+});
+
 module.exports = router;
