@@ -28,11 +28,21 @@ router.post("/send", authenticateUser, async (req, res) => {
       return res.status(409).json({ error: "Friend request already sent" });
     }
 
-    await prisma.friendRequest.create({
+    const request = await prisma.friendRequest.create({
       data: {
         senderId,
         receiverId,
       },
+      include: {
+        sender: true,
+        receiver: true,
+      },
+    });
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    broadcastToUsers([receiverId.toString()], {
+      type: "NEW_FRIEND_REQUEST",
+      data: request,
     });
 
     res.status(201).json({ message: "Friend request sent" });
@@ -48,6 +58,10 @@ router.post("/accept", authenticateUser, async (req, res) => {
   try {
     const request = await prisma.friendRequest.findUnique({
       where: { id: requestId },
+      include: {
+        sender: true,
+        receiver: true,
+      },
     });
 
     if (!request || request.status !== "pending") {
@@ -79,6 +93,22 @@ router.post("/accept", authenticateUser, async (req, res) => {
       }),
     ]);
 
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    const friendshipUpdate = {
+      senderId: request.senderId,
+      receiverId: request.receiverId,
+      sender: request.sender,
+      receiver: request.receiver,
+    };
+
+    broadcastToUsers(
+      [request.senderId.toString(), request.receiverId.toString()],
+      {
+        type: "FRIEND_REQUEST_ACCEPTED",
+        data: friendshipUpdate,
+      }
+    );
+
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
     console.error(error);
@@ -92,6 +122,10 @@ router.post("/reject", authenticateUser, async (req, res) => {
   try {
     const request = await prisma.friendRequest.findUnique({
       where: { id: requestId },
+      include: {
+        sender: true,
+        receiver: true,
+      },
     });
 
     if (!request || request.status !== "pending") {
@@ -103,6 +137,16 @@ router.post("/reject", authenticateUser, async (req, res) => {
     await prisma.friendRequest.update({
       where: { id: requestId },
       data: { status: "rejected" },
+    });
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    broadcastToUsers([request.senderId.toString()], {
+      type: "FRIEND_REQUEST_REJECTED",
+      data: {
+        requestId,
+        senderId: request.senderId,
+        receiverId: request.receiverId,
+      },
     });
 
     res.status(200).json({ message: "Friend request rejected" });
