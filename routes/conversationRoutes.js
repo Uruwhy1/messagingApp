@@ -300,6 +300,267 @@ router.get("/:conversationId", async (req, res) => {
   }
 });
 
+router.patch("/:conversationId/name", authenticateUser, async (req, res) => {
+  const { conversationId } = req.params;
+  const { name } = req.body;
+  const requestId = req.user.id;
+
+  if (isNaN(+conversationId)) {
+    return res.status(400).json({ error: "Invalid conversation ID" });
+  }
+
+  if (typeof name !== "string") {
+    return res.status(400).json({ error: "Name must be a string" });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: parseInt(conversationId) },
+      select: { adminId: true },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    if (conversation.adminId !== requestId) {
+      return res.status(403).json({
+        error: "Only the conversation admin can change the name",
+      });
+    }
+
+    const updatedConversation = await prisma.conversation.update({
+      where: { id: parseInt(conversationId) },
+      data: { name: name.trim() },
+      include: {
+        users: {
+          include: {
+            user: {
+              select: { name: true, id: true, picture: true },
+            },
+          },
+        },
+        messages: {
+          include: {
+            author: {
+              select: { name: true, id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const response = formatConversation(updatedConversation, false);
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    const stringIds = updatedConversation.users.map((cu) =>
+      cu.user.id.toString()
+    );
+
+    broadcastToUsers(stringIds, {
+      type: "CONVERSATION_NAME_UPDATED",
+      data: response,
+    });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Failed to update conversation name:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating conversation name." });
+  }
+});
+
+router.patch("/:conversationId/picture", authenticateUser, async (req, res) => {
+  const { conversationId } = req.params;
+  const { picture } = req.body;
+  const requestId = req.user.id;
+
+  if (isNaN(+conversationId)) {
+    return res.status(400).json({ error: "Invalid conversation ID" });
+  }
+
+  if (picture && typeof picture !== "string") {
+    return res
+      .status(400)
+      .json({ error: "Picture must be a string URL or empty" });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: parseInt(conversationId) },
+      select: { adminId: true },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    if (conversation.adminId !== requestId) {
+      return res.status(403).json({
+        error: "Only the conversation admin can change the picture",
+      });
+    }
+
+    const updatedConversation = await prisma.conversation.update({
+      where: { id: parseInt(conversationId) },
+      data: { picture: picture || "" },
+      include: {
+        users: {
+          include: {
+            user: {
+              select: { name: true, id: true, picture: true },
+            },
+          },
+        },
+        messages: {
+          include: {
+            author: {
+              select: { name: true, id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const response = formatConversation(updatedConversation, false);
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    const stringIds = updatedConversation.users.map((cu) =>
+      cu.user.id.toString()
+    );
+
+    broadcastToUsers(stringIds, {
+      type: "CONVERSATION_PICTURE_UPDATED",
+      data: response,
+    });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Failed to update conversation picture:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating conversation picture" });
+  }
+});
+
+router.post("/:conversationId/users", authenticateUser, async (req, res) => {
+  const { conversationId } = req.params;
+  const { userIds } = req.body;
+  const adminId = req.user.id;
+
+  if (isNaN(+conversationId)) {
+    return res.status(400).json({ error: "Invalid conversation ID" });
+  }
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: "Must provide at least one user ID" });
+  }
+
+  if (!userIds.every((id) => typeof id === "number" && !isNaN(id))) {
+    return res
+      .status(400)
+      .json({ error: "All user IDs must be valid numbers" });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: parseInt(conversationId) },
+      include: {
+        users: {
+          select: { userId: true },
+        },
+        admin: {
+          select: { friends: { select: { id: true } } },
+        },
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    if (conversation.adminId !== adminId) {
+      return res.status(403).json({
+        error: "Only the conversation admin can add users",
+      });
+    }
+
+    const existingUserIds = conversation.users.map((u) => u.userId);
+
+    const adminFriendIds = conversation.admin.friends.map((f) => f.id);
+    const invalidUsers = userIds.filter(
+      (userId) =>
+        !adminFriendIds.includes(userId) || existingUserIds.includes(userId)
+    );
+
+    if (invalidUsers.length > 0) {
+      return res.status(400).json({
+        error:
+          "All added users must be friends with admin and not already in the conversation",
+      });
+    }
+
+    const existingUsers = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+    });
+
+    if (existingUsers.length !== userIds.length) {
+      return res.status(400).json({ error: "One or more users not found" });
+    }
+
+    const updatedConversation = await prisma.conversation.update({
+      where: { id: parseInt(conversationId) },
+      data: {
+        users: {
+          createMany: {
+            data: userIds.map((userId) => ({ userId })),
+            skipDuplicates: true,
+          },
+        },
+      },
+      include: {
+        users: {
+          include: {
+            user: {
+              select: { name: true, id: true, picture: true },
+            },
+          },
+        },
+        messages: {
+          include: {
+            author: {
+              select: { name: true, id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const response = formatConversation(updatedConversation, false);
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    const stringIds = updatedConversation.users.map((cu) =>
+      cu.user.id.toString()
+    );
+
+    broadcastToUsers(stringIds, {
+      type: "CONVERSATION_USERS_ADDED",
+      data: {
+        ...response,
+        addedUserIds: userIds,
+      },
+    });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Failed to add users to conversation:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while adding users to conversation" });
+  }
+});
+
 function formatConversation(conversation, includeAllMessages = false) {
   const baseStructure = {
     id: conversation.id,
@@ -312,6 +573,7 @@ function formatConversation(conversation, includeAllMessages = false) {
   if (includeAllMessages) {
     return {
       ...baseStructure,
+      adminId: conversation.adminId,
       messages: conversation.messages.map((message) => ({
         content: message.content,
         createdAt: message.date,
