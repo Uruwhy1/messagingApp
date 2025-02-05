@@ -262,7 +262,9 @@ router.get("/user/:userId", async (req, res) => {
   }
 });
 
-router.get("/:conversationId", async (req, res) => {
+router.get("/:conversationId", authenticateUser, async (req, res) => {
+  const userId = req.user.id;
+
   try {
     const conversationId = parseInt(req.params.conversationId);
 
@@ -288,6 +290,14 @@ router.get("/:conversationId", async (req, res) => {
         },
       },
     });
+
+    const isUserInConversation = conversation.users.some(
+      (participant) => participant.user.id === userId
+    );
+
+    if (!isUserInConversation) {
+      return res.status(403).json({ error: "Access denied" });
+    }
 
     if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
