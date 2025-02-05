@@ -561,6 +561,119 @@ router.post("/:conversationId/users", authenticateUser, async (req, res) => {
   }
 });
 
+router.delete("/:conversationId/users", authenticateUser, async (req, res) => {
+  const { conversationId } = req.params;
+  const { userIds } = req.body;
+  const requestId = req.user.id;
+
+  if (isNaN(+conversationId)) {
+    return res.status(400).json({ error: "Invalid conversation ID" });
+  }
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Must provide at least one user ID to remove" });
+  }
+
+  if (!userIds.every((id) => typeof id === "number" && !isNaN(id))) {
+    return res
+      .status(400)
+      .json({ error: "All user IDs must be valid numbers" });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: parseInt(conversationId) },
+      include: {
+        users: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    if (conversation.adminId !== requestId) {
+      return res.status(403).json({
+        error: "Only the conversation admin can remove multiple users",
+      });
+    }
+
+    const existingUserIds = conversation.users.map((u) => u.userId);
+    const invalidUsers = userIds.filter((id) => !existingUserIds.includes(id));
+
+    if (invalidUsers.length > 0) {
+      return res.status(400).json({
+        error: "One or more users are not part of this conversation",
+      });
+    }
+
+    if (userIds.includes(requestId)) {
+      return res.status(400).json({
+        error: "Cannot remove the conversation admin",
+      });
+    }
+
+    await prisma.conversationUser.deleteMany({
+      where: {
+        conversationId: parseInt(conversationId),
+        userId: {
+          in: userIds,
+        },
+      },
+    });
+
+    const updatedConversation = await prisma.conversation.findUnique({
+      where: { id: parseInt(conversationId) },
+      include: {
+        users: {
+          include: {
+            user: {
+              select: { name: true, id: true, picture: true },
+            },
+          },
+        },
+        messages: {
+          include: {
+            author: {
+              select: { name: true, id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const response = formatConversation(updatedConversation, false);
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    const stringIds = [
+      ...updatedConversation.users.map((cu) => cu.user.id.toString()),
+      ...userIds.map((id) => id.toString()),
+    ];
+
+    broadcastToUsers(stringIds, {
+      type: "CONVERSATION_USERS_REMOVED",
+      data: {
+        ...response,
+        removedUserIds: userIds,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Users removed from the conversation",
+      conversation: response,
+    });
+  } catch (error) {
+    console.error("Error removing users from conversation:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 function formatConversation(conversation, includeAllMessages = false) {
   const baseStructure = {
     id: conversation.id,
