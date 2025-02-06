@@ -27,10 +27,34 @@ wss.on("connection", (ws, req) => {
     }
     usersOnline.get(userId).add(ws);
 
+    broadcastToUsers([...usersOnline.keys()], {
+      type: "USER_STATUS_CHANGE",
+      data: {
+        userId: userId,
+        status: "online",
+      },
+    });
+
+    ws.send(
+      JSON.stringify({
+        type: "INITIAL_STATUS",
+        data: {
+          onlineUsers: [...usersOnline.keys()],
+        },
+      })
+    );
+
     ws.on("close", () => {
       usersOnline.get(userId).delete(ws);
       if (usersOnline.get(userId).size === 0) {
         usersOnline.delete(userId);
+        broadcastToUsers([...usersOnline.keys()], {
+          type: "USER_STATUS_CHANGE",
+          data: {
+            userId: userId,
+            status: "offline",
+          },
+        });
       }
     });
   }
@@ -85,6 +109,11 @@ app.use("/users", userRouter);
 app.use("/friends", friendRouter);
 app.use("/conversations/:conversationId/message", messageRouter);
 app.use("/conversations", conversationRouter);
+app.get("/users/online", (req, res) => {
+  res.json({
+    onlineUsers: [...usersOnline.keys()],
+  });
+});
 
 const PORT = process.env.PORT || 3000;
 
