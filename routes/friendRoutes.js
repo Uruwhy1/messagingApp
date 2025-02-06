@@ -177,4 +177,44 @@ router.get("/listRequests/:userId", async (req, res) => {
   }
 });
 
+router.post("/remove", authenticateUser, async (req, res) => {
+  const { friendId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          friends: {
+            disconnect: { id: friendId },
+          },
+        },
+      }),
+      prisma.user.update({
+        where: { id: friendId },
+        data: {
+          friends: {
+            disconnect: { id: userId },
+          },
+        },
+      }),
+    ]);
+
+    const broadcastToUsers = req.app.locals.broadcastToUsers;
+    broadcastToUsers([userId.toString(), friendId.toString()], {
+      type: "FRIEND_REMOVED",
+      data: {
+        userId,
+        friendId,
+      },
+    });
+
+    res.status(200).json({ message: "Friend removed successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to remove friend" });
+  }
+});
+
 module.exports = router;
